@@ -1,0 +1,82 @@
+# This code plots the thrust available vs airspeed (stall speed to Mach 1) at different altitudes
+
+#custom function to get P, T and rho at given altitude
+
+g0 = 32.174         # feet per square seconds, std grav acceleration
+R = 1716.5          # feet square per second square per deg Rankine, specific gas constant of air
+F_to_R = 459.67     # to convert deg Fahrenheit to deg Rankine, R = F + 459.67
+a = -0.00357        # deg Rankine per feet, environmental lapse rate
+P_sl = 2116.22      # pounds per square feet, pressure at sea level
+rho_sl = 2.3769e-3  # slugs per cubic feet, density at sea level
+T_sl = 59           # deg Fahrenheit, Temperature at sea level
+T_trop = -69.7      # deg Fahrenheit, Temperature at 36000 feet
+P_trop = 474.59       # pounds per square feet, pressure at 36000 feet
+rho_trop = 7.0864e-4  # slugs per cubic feet, density at 36000 feet
+
+def get_PTrho_given_altitude(h,g0,R,P_sl,rho_sl,F_to_R,a,T_sl,T_trop,P_trop,rho_trop):
+    if h < 36000 :
+        T1 = T_sl + F_to_R                     # CHECKED deg Rankine, Temperature at sea level
+        T = T1 + a*h                         # deg Rankine, Temperature at h
+        P = P_sl * ( T / T1 )**(-1*g0/(R*a))              # pounds per square feet, Pressure at h
+        rho = rho_sl * ( T / T1 )**(-1*(g0/(R*a) + 1))    # slug per cubic fe   et, Density at h
+    
+    elif h >= 36000 and h < 82000 :          # isotherml region of stratosphere
+        h0 = 36000                           # feet, altitude at tropopause
+        T = T_trop + F_to_R                   # deg Rankine, Temperature at 36000 feet
+        P = P_trop * m.e**(-1*g0*(h - h0)/(R*T))        # pounds per square feet, Pressure at h
+        rho = rho_trop * m.e**(-1*g0*(h - h0)/(R*T))    # slug per feet cube, Density at h
+    
+    return [P, T - F_to_R, rho]     #return Pressure in lb/ft2, Temperature in degF and Density in slugs/ft3
+
+# given parameters and constants
+
+gamma = 1.4     # specific heat ratio of dry air in standard model
+TA_sl = 7300    # pounds-force, thrust available at sea level
+W = 19815       # pounds-force, weight of aircraft
+S = 318         # feet sqaure, planform area
+CL_max = 1.93   # maximum coefficient of lift
+V_delta = 10    # feet per sec, increment of range of velocities
+
+# custom function to get speed of sound from altitude
+def get_a_given_h(h):
+    P_h = get_PTrho_given_altitude(h,g0,R,P_sl,rho_sl,F_to_R,a,T_sl,T_trop,P_trop,rho_trop)[0]
+    rho_h = get_PTrho_given_altitude(h,g0,R,P_sl,rho_sl,F_to_R,a,T_sl,T_trop,P_trop,rho_trop)[2]
+    a_s = (gamma*P_h/rho_h)**0.5
+    return a_s
+
+# custom function to get thrust available at an altitude
+def get_Ta_given_h(h):
+    P_h = get_PTrho_given_altitude(h,g0,R,P_sl,rho_sl,F_to_R,a,T_sl,T_trop,P_trop,rho_trop)[0]
+    Ta_h = P_h*TA_sl/P_sl
+    return Ta_h
+
+# custom function to get stall speed at an altitude
+def get_Vstall_given_h(h):
+    rho_h = get_PTrho_given_altitude(h,g0,R,P_sl,rho_sl,F_to_R,a,T_sl,T_trop,P_trop,rho_trop)[2]
+    V_stall = (2*W/(rho_h*S*CL_max))**0.5
+    return V_stall
+
+# range of altitudes in feet
+h_range = np.arange(0, 46000, 5000)
+
+# built dataset of Ta and Vstall
+df = []
+for h in h_range:
+    V_stall = get_Vstall_given_h(h)
+    a_h = get_a_given_h(h)
+    V_range = np.arange(V_stall, a_h, V_delta).tolist()
+    Ta_ = get_Ta_given_h(h)
+    df.append([Ta_, V_range])
+
+#create plot
+plt.figure(figsize=(12, 10))
+for i in range(len(df)):
+    x = np.array(df[i][1]) / knot_to_ftpersec
+    y = [df[i][0]]*len(df[i][1])
+    h = h_range[i]
+    plt.plot(x, y, label = 'altitude/ft = {}'.format(h))
+    plt.xlabel("Airspeed / knots")
+    plt.ylabel("Thrust Available / lb-f")
+    plt.title("Thrust Available vs Airspeed (Stall Speed to Mach 1)", fontsize = 14)
+plt.legend(fontsize = 10, bbox_to_anchor=(1, 1))
+plt.show()
