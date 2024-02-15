@@ -53,6 +53,8 @@ def get_Ta_given_h(h):
 # custom function to get stall speed at an altitude
 def get_Vstall_given_h(h):
     rho_h = get_PTrho_given_altitude(h,g0,R,P_sl,rho_sl,F_to_R,a,T_sl,T_trop,P_trop,rho_trop)[2]
+    # IMPORTANT NOTE ON UNITS SLUG AND LBS: NO NEED TO CHANGE RHO IN SLUG/FT-3 TO LB/FT-3
+    # BECAUSE WEIGHT IS IN LBF AND LBF = SLUG.FT.S-2
     V_stall = (2*W/(rho_h*S*CL_max))**0.5
     return V_stall
 
